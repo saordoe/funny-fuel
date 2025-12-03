@@ -1,68 +1,45 @@
-using JetBrains.Annotations;
-using System.Diagnostics.Tracing;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
-{
-    public Rigidbody rb;
-    private float jumpForce = 5f;
-    public GameObject floor;
-    public Camera cameraObject;
+// Arcade style car controller
+public class PlayerMovement : MonoBehaviour {
+    public float moveSpeed = 20f;          // forward speed
+    public float turnSpeed = 120f;         // how fast A/D rotate
+    public float drag = 5f;                // how fast it stops when not pressing anything
 
-    private bool jumpRequest;
-    private bool isGrounded;
+    private Rigidbody rb;
 
-    private void Start()
-    {
+    void Start() {
         rb = GetComponent<Rigidbody>();
+        rb.freezeRotation = true;   // avoid physics tipping over
     }
 
-    private void OnCollisionStay(Collision collision)
-    {
-        if (collision.gameObject.name == "Floor")
-            isGrounded = true;
-    }
-    private void OnCollisionExit(Collision collision)
-    {
-        if (collision.gameObject.name == "Floor")
-            isGrounded = false;
-    }
+    void FixedUpdate() {
+        float forward = 0f;
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            jumpRequest = true;
+        if (Input.GetKey(KeyCode.W))
+            forward = 1f;
+        else if (Input.GetKey(KeyCode.S))
+            forward = -1f;
+
+        // Apply forward movement
+        Vector3 velocity = transform.forward * forward * moveSpeed;
+        rb.MovePosition(rb.position + velocity * Time.fixedDeltaTime);
+
+        // Apply drag (so it stops quickly when no input)
+        if (forward == 0f) {
+            rb.velocity = Vector3.Lerp(rb.velocity, Vector3.zero, drag * Time.fixedDeltaTime);
         }
 
-        Quaternion cameraQuat = cameraObject.transform.rotation;
-        Vector3 cameraAngles = cameraQuat.eulerAngles;
-        cameraAngles.x = 0;
-        cameraAngles.z = 0;
-        transform.eulerAngles = cameraAngles;
-    }
+        // A/D turning (always responsive)
+        float turnInput = 0f;
 
-    void FixedUpdate()
-    {
-        Vector3 movement = Vector3.zero;
-        if (Input.GetKey("w"))
-            movement.z += 20f * Time.deltaTime;
+        if (Input.GetKey(KeyCode.A)) turnInput = -1f;
+        if (Input.GetKey(KeyCode.D)) turnInput = 1f;
 
-        if (Input.GetKey("a"))
-            movement.x -= 20f * Time.deltaTime;
-
-        if (Input.GetKey("s"))
-            movement.z -= 20f * Time.deltaTime;
-
-        if (Input.GetKey("d"))
-            movement.x += 20f * Time.deltaTime;
-
-        rb.MovePosition(movement + transform.position);
-
-        if (jumpRequest && isGrounded)
-        {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        // Rotate even if not moving
+        if (turnInput != 0f) {
+            float turnAmount = turnInput * turnSpeed * Time.fixedDeltaTime;
+            transform.Rotate(0f, turnAmount, 0f);
         }
-        jumpRequest = false;
     }
 }
